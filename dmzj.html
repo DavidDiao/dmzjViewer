@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>大妈之家阅读器</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script>
+        var imgs = [], pg = 0;
+        function search() {
+            var req = document.createElement('script');
+            req.type = 'text/javascript';
+            req.onload = () => {
+                var options = document.getElementById('results').options;
+                options.length = 0;
+                g_search_data.forEach((v, i) => options[i] = new Option(`${v.comic_name}(更新到 ${v.last_update_chapter_name})`, v.id));
+                document.getElementById('chapters').options.length = 0;
+            };
+            req.src = `http://sacg.dmzj.com/comicsum/search.php?s=${encodeURI(document.getElementById('search').value)}`;
+            document.head.appendChild(req);
+        }
+        function list() {
+            var comic_id = document.getElementById('results').value;
+            if (!comic_id) return;
+            var req = new XMLHttpRequest();
+            req.addEventListener("load", () => {
+                var data = JSON.parse(req.responseText);
+                if (data.chapters.length != 1 || data.chapters[0].title != '连载') alert(`这个章节列表好像不大对劲 麻烦把comic_id=${comic_id}丢给咱`);
+                var options = document.getElementById('chapters').options;
+                options.length = 0;
+                data.chapters[0].data.sort((a, b) => b.chapter_order - a.chapter_order).forEach((v, i) => options[i] = new Option(v.chapter_title, v.chapter_id));
+            });
+            req.open('GET', `http://v3api.dmzj1.com/comic/comic_${comic_id}.json`);
+            req.send();
+        }
+        function view() {
+            var chapter_id = document.getElementById('chapters').value, comic_id = document.getElementById('results').value;
+            if (!chapter_id) return;
+            var req = new XMLHttpRequest();
+            req.addEventListener("load", () => {
+                var data = JSON.parse(req.responseText);
+                imgs = data.page_url_hd;
+                document.getElementById('total').innerText = data.picnum;
+                document.getElementById('current').innerText = pg = 1;
+                viewImg();
+            });
+            req.open('GET', `http://v3api.dmzj1.com/chapter/${comic_id}/${chapter_id}.json`);
+            req.send();
+        }
+        function viewImg() {
+            document.getElementById('img').src = imgs[pg - 1];
+            location.href = '#img';
+        }
+        function nextPg() {
+            if (pg == imgs.length) return nextCh();
+            document.getElementById('current').innerText = ++pg;
+            viewImg();
+        }
+        function prevPg() {
+            if (pg == 1) return alert('已经是第一页了');
+            document.getElementById('current').innerText = --pg;
+            viewImg();
+        }
+        function nextCh() {
+            var select = document.getElementById('chapters');
+            if (select.selectedIndex == 0) return alert('已经是最后一章了');
+            --select.selectedIndex;
+            view();
+        }
+        function prevCh() {
+            var select = document.getElementById('chapters');
+            if (select.selectedIndex == select.length - 1) return alert('已经是第一章了');
+            ++select.selectedIndex;
+            view();
+        }
+    </script>
+</head>
+
+<body>
+<input id="search" onkeydown="if (event.keyCode == 13) search()" /> <button onclick="search()">搜索</button><br />
+<select id="results"></select> <button onclick="list()">查看章节列表</button><br />
+<select id="chapters"></select> <button onclick="view()">查看</button><br />
+<img id="img" onclick="nextPg()" style="max-width: 100%;" /><br />
+<button onclick="prevCh()">上一章</button> <button onclick="prevPg()">上一页</button> <span id="current">0</span>/<span id="total">0</span> <button onclick="nextPg()">下一页</button> <button onclick="nextCh()">下一章</button>
+</body>
+
+</html>
